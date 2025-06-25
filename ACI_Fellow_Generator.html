@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACI Fellow Role Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- NEW COLOR SCHEME --- */
+        body {
+            font-family: 'Chakra Petch', sans-serif;
+            background-color: #c6E4EF; /* Main Background */
+        }
+        .board {
+            background-color: #000000; /* Announcement Board */
+            border: 8px solid #222;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.5);
+        }
+        .text-highlight {
+            color: #ffffff; /* Highlighted Text (Names) - UPDATED */
+        }
+        .text-primary {
+            color: #ffffff; /* Primary Text */
+        }
+        .text-secondary {
+            color: #eeeeee; /* Secondary text for roles */
+        }
+        .text-muted {
+            color: #1f2937; /* Muted text for intro paragraph */
+        }
+
+        /* --- BUTTON STYLES --- */
+        .action-button {
+            background-color: #016367; /* Button Background */
+            color: #cfe0ea; /* Button Text (#ffffff) */
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+        .action-button:hover {
+            transform: translateY(-2px);
+            background-color: #027e85; /* Slightly lighter for hover */
+            box-shadow: 0 6px 12px rgba(1, 99, 103, 0.5);
+        }
+        .action-button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+        .action-button:disabled {
+            background-color: #014144;
+            color: #a1b0b5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+
+        /* --- ANIMATION STYLES (Unchanged) --- */
+        .flipper-container {
+            perspective: 500px;
+        }
+        .flipper {
+            display: inline-block;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        .flipper.flipping {
+            animation: flip-spin 1s ease-out forwards;
+        }
+        @keyframes flip-spin {
+            0% { transform: rotateX(-270deg); }
+            100% { transform: rotateX(0deg); }
+        }
+        .char {
+            display: inline-block;
+            text-transform: uppercase;
+        }
+        .randomizing .char {
+            animation: randomChar 100ms linear infinite;
+        }
+        @keyframes randomChar {
+            0%, 100% { content: 'A'; } 10% { content: 'K'; } 20% { content: 'L'; } 30% { content: 'X'; } 40% { content: 'V'; } 50% { content: 'M'; } 60% { content: 'H'; } 70% { content: 'N'; } 80% { content: 'R'; } 90% { content: 'W'; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto">
+        <h1 class="text-3xl md:text-5xl font-bold text-center mb-4 text-primary" style="color: #016367;">ACI Fellow Role Allocator</h1>
+        <p class="text-center text-muted mb-8">Click the button to assign expert roles!</p>
+
+        <!-- The main announcement board -->
+        <div id="announcement-board" class="board rounded-2xl p-6 md:p-10">
+            <div id="role-list" class="space-y-4">
+                <!-- Roles will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <!-- The randomize button -->
+        <div class="text-center mt-8">
+            <button id="randomize-button" class="action-button font-bold py-3 px-8 rounded-lg text-xl">
+                Randomise Roles
+            </button>
+        </div>
+         <div id="message-box" class="fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg hidden"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- DATA ---
+            const fellows = ['Amir', 'Holly', 'Liam', 'Megan', 'Nick', 'Ryan', 'Virginia'];
+            const roles = [
+                '1. Learning Spaces & Culture Expert',
+                '2. Teacher Role & Pedagogy Expert',
+                '3. Student Capabilities Expert',
+                '4. How Students Learn Expert',
+                '5. Collaboration & Peer Learning Expert',
+                '6. Feedback & Assessment Expert',
+                '7. Inclusivity & Diversity Expert'
+            ];
+
+            // --- ELEMENTS ---
+            const roleListElement = document.getElementById('role-list');
+            const randomizeButton = document.getElementById('randomize-button');
+            const messageBox = document.getElementById('message-box');
+
+            // --- FUNCTIONS ---
+            
+            /**
+             * Initializes the board with default "Awaiting Assignment" text.
+             */
+            function initializeBoard() {
+                roleListElement.innerHTML = ''; // Clear previous content
+                roles.forEach((role, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex flex-col md:flex-row justify-between items-start md:items-center text-lg md:text-2xl border-b-2 border-dashed border-gray-700 pb-2';
+                    row.innerHTML = `
+                        <span class="text-secondary">${role}</span>
+                        <span id="fellow-${index}" class="flipper-container text-highlight font-bold tracking-widest mt-1 md:mt-0">AWAITING...</span>
+                    `;
+                    roleListElement.appendChild(row);
+                });
+            }
+
+            /**
+             * Shuffles an array in place using the Fisher-Yates algorithm.
+             * @param {Array} array The array to shuffle.
+             * @returns {Array} The shuffled array.
+             */
+            function shuffleArray(array) {
+                let currentIndex = array.length, randomIndex;
+                const newArray = [...array]; // Create a copy
+                while (currentIndex !== 0) {
+                    randomIndex = Math.floor(Math.random() * currentIndex);
+                    currentIndex--;
+                    [newArray[currentIndex], newArray[randomIndex]] = [newArray[randomIndex], newArray[currentIndex]];
+                }
+                return newArray;
+            }
+
+            /**
+             * Animates a single name with a character-flipping effect.
+             * @param {HTMLElement} element The element to animate.
+             * @param {string} finalName The name to display at the end.
+             */
+            function animateName(element, finalName) {
+                element.innerHTML = ''; // Clear current content
+                const chars = finalName.split('');
+                
+                // Set to randomizing state
+                chars.forEach(() => {
+                    const charSpan = document.createElement('span');
+                    charSpan.className = 'char randomizing';
+                    charSpan.textContent = 'A'; // Placeholder
+                    element.appendChild(charSpan);
+                });
+
+                // Set final name after a delay
+                setTimeout(() => {
+                    const charSpans = element.querySelectorAll('.char');
+                    charSpans.forEach((span, i) => {
+                        span.classList.remove('randomizing');
+                        span.textContent = chars[i];
+                    });
+                     element.parentElement.classList.add('flipping');
+                }, 800); // Duration of the random character flicker
+            }
+
+            /**
+             * Main function to handle the randomization and update the UI.
+             */
+            function assignRoles() {
+                randomizeButton.disabled = true;
+                randomizeButton.textContent = 'Assigning...';
+
+                const shuffledFellows = shuffleArray(fellows);
+                
+                // Remove flipping class to allow re-triggering animation
+                document.querySelectorAll('.flipper').forEach(f => f.classList.remove('flipping'));
+
+                roles.forEach((_, index) => {
+                    const fellowElement = document.getElementById(`fellow-${index}`);
+                    const assignedFellow = shuffledFellows[index];
+                    
+                    // Stagger the animation for each row
+                    setTimeout(() => {
+                        animateName(fellowElement, assignedFellow);
+                    }, index * 200); // 200ms delay between each row's animation start
+                });
+
+                // Re-enable the button after all animations have had time to complete
+                setTimeout(() => {
+                    randomizeButton.disabled = false;
+                    randomizeButton.textContent = 'Randomise Again';
+                    showToast('Assignments Complete!');
+                }, roles.length * 200 + 1000); // Total animation time + buffer
+            }
+
+            /**
+             * Shows a toast message for user feedback.
+             * @param {string} message The message to display.
+             */
+            function showToast(message) {
+                messageBox.textContent = message;
+                messageBox.classList.remove('hidden');
+                setTimeout(() => {
+                    messageBox.classList.add('hidden');
+                }, 3000);
+            }
+
+            // --- EVENT LISTENERS ---
+            randomizeButton.addEventListener('click', assignRoles);
+
+            // --- INITIALIZATION ---
+            initializeBoard();
+        });
+    </script>
+</body>
+</html>
